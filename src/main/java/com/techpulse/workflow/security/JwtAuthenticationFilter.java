@@ -4,58 +4,60 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
-import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+// Reads the JWT from the Authorization header and sets up the security context
 @Component
-@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
 
-    @Override
-    protected void doFilterInternal(@NonNull HttpServletRequest request,
-                                    @NonNull HttpServletResponse response,
-                                    @NonNull FilterChain filterChain)
-            throws ServletException, IOException {
+    public JwtAuthenticationFilter(JwtService jwtService) {
+        this.jwtService = jwtService;
+    }
 
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String header = request.getHeader("Authorization");
+
+        // No token? Just continue, Spring Security will handle 401
         if (header == null || !header.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         String token = header.substring(7);
-        try {
-            if (jwtService.isValid(token)) {
-                String username = jwtService.extractUsername(token);
-                Long userId    = jwtService.extractUserId(token);
-                List<String> roles = jwtService.extractRoles(token);
 
-                Set<String> roleSet = roles == null ? Set.of() : Set.copyOf(roles);
-                UserPrincipal principal = new UserPrincipal(userId, username, null, roleSet);
+        if (jwtService.isTokenValid(token)) {
+            String username = jwtService.extractUsername(token);
+            Long userId = jwtService.extractUserId(token);
+            List<String> roles = jwtService.extractRoles(token);
 
-                var authorities = roleSet.stream()
-                        .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
-                        .collect(Collectors.toList());
+            Set<SimpleGrantedAuthority> authorities = roles.stream()
+                    .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                    .collect(Collectors.toSet());
 
-                var auth = new UsernamePasswordAuthenticationToken(principal, null, authorities);
-                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(auth);
-            }
-        } catch (Exception ignored) {
-            // Invalid token → continue without authentication
+            // Build a UserPrincipal from token claims
+            com.techpulse.workflow.entity.User user = new com.techpulse.workflow.entity.User();
+            user.setId(userId);
+            user.setUsername(username);
+            user.setPassword("");
+            user.setRoles(new java.util.HashSet<>(roles));
+
+            UserPrincipal principal = new UserPrincipal(user);
+
+            UsernamePasswordAuthenticationToken auth =
+                    new UsernamePasswordAuthenticationToken(principal, null, authorities);
+            SecurityContextHolder.getContext().setAuthentication(auth);
         }
 
         filterChain.doFilter(request, response);

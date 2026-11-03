@@ -1,7 +1,6 @@
 package com.techpulse.workflow.dto;
 
-import com.techpulse.workflow.entity.RequestStatus;
-
+import com.techpulse.workflow.enums.RequestStatus;
 import java.time.LocalDateTime;
 
 public record RequestResponse(
@@ -14,3 +13,4 @@ public record RequestResponse(
         LocalDateTime createdAt,
         StepInfo currentStep
 ) {}
+

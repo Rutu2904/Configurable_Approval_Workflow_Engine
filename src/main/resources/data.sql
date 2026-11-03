@@ -1,22 +1,31 @@
--- Users (password = {noop}password123 for all)
-MERGE INTO users (id, username, password) KEY(username)
-    VALUES (1, 'alice', '{noop}password123'),
-           (2, 'bob',   '{noop}password123'),
-           (3, 'carol', '{noop}password123'),
-           (4, 'dave',  '{noop}password123'),
-           (5, 'admin', '{noop}password123');
+-- Users (all passwords are "password123" with {noop} prefix for plain text)
+INSERT INTO users (id, username, password) VALUES (1, 'alice', '{noop}password123');
+INSERT INTO users (id, username, password) VALUES (2, 'bob', '{noop}password123');
+INSERT INTO users (id, username, password) VALUES (3, 'carol', '{noop}password123');
+INSERT INTO users (id, username, password) VALUES (4, 'dave', '{noop}password123');
+INSERT INTO users (id, username, password) VALUES (5, 'admin', '{noop}password123');
 
-MERGE INTO user_roles (user_id, role) KEY(user_id, role)
-    VALUES (1, 'REQUESTER'),
-           (2, 'APPROVER'), (2, 'MANAGER'),
-           (3, 'APPROVER'), (3, 'HR'),
-           (4, 'APPROVER'), (4, 'FINANCE'),
-           (5, 'ADMIN');
+-- User roles
+INSERT INTO user_roles (user_id, role) VALUES (1, 'REQUESTER');
+INSERT INTO user_roles (user_id, role) VALUES (2, 'APPROVER');
+INSERT INTO user_roles (user_id, role) VALUES (2, 'MANAGER');
+INSERT INTO user_roles (user_id, role) VALUES (3, 'APPROVER');
+INSERT INTO user_roles (user_id, role) VALUES (3, 'HR');
+INSERT INTO user_roles (user_id, role) VALUES (4, 'APPROVER');
+INSERT INTO user_roles (user_id, role) VALUES (4, 'FINANCE');
+INSERT INTO user_roles (user_id, role) VALUES (5, 'ADMIN');
 
--- Workflow steps: to add a new workflow, simply insert rows below with a
--- new request_type and sequential step_order values. No code changes needed.
-MERGE INTO approval_steps (id, request_type, step_order, role) KEY(request_type, step_order)
-    VALUES (1, 'LEAVE',   1, 'MANAGER'),
-           (2, 'LEAVE',   2, 'HR'),
-           (3, 'EXPENSE', 1, 'MANAGER'),
-           (4, 'EXPENSE', 2, 'FINANCE');
+-- Workflow: LEAVE requires MANAGER approval then HR approval
+INSERT INTO approval_steps (id, request_type, step_order, role) VALUES (1, 'LEAVE', 1, 'MANAGER');
+INSERT INTO approval_steps (id, request_type, step_order, role) VALUES (2, 'LEAVE', 2, 'HR');
+
+-- Workflow: EXPENSE requires MANAGER approval then FINANCE approval
+INSERT INTO approval_steps (id, request_type, step_order, role) VALUES (3, 'EXPENSE', 1, 'MANAGER');
+INSERT INTO approval_steps (id, request_type, step_order, role) VALUES (4, 'EXPENSE', 2, 'FINANCE');
+
+-- To add a new workflow, just insert rows here. For example:
+-- INSERT INTO approval_steps (request_type, step_order, role) VALUES ('PURCHASE_ORDER', 1, 'MANAGER');
+-- INSERT INTO approval_steps (request_type, step_order, role) VALUES ('PURCHASE_ORDER', 2, 'FINANCE');
+-- INSERT INTO approval_steps (request_type, step_order, role) VALUES ('PURCHASE_ORDER', 3, 'DIRECTOR');
+-- (Make sure the DIRECTOR role is assigned to a user in user_roles)
+

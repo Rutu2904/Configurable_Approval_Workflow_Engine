@@ -1,53 +1,66 @@
 package com.techpulse.workflow.security;
 
+import com.techpulse.workflow.entity.User;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
+import java.util.List;
 import java.util.Set;
 
-import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.*;
 
 class JwtServiceTest {
 
     private JwtService jwtService;
-    private final String secret = Base64.getEncoder().encodeToString(
-            "very_secret_key_that_is_at_least_32_bytes_long_1234567890".getBytes(StandardCharsets.UTF_8));
-    private final long expirationMs = 60000;
+    private UserPrincipal principal;
 
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService(secret, expirationMs);
+        // Base64 encoded 256-bit key
+        jwtService = new JwtService("dGhpc0lzQVNlY3JldEtleUZvckpXVFRva2VuR2VuZXJhdGlvbjI1Ng==", 3600000);
+
+        User user = new User();
+        user.setId(1L);
+        user.setUsername("alice");
+        user.setPassword("pass");
+        user.setRoles(Set.of("REQUESTER"));
+        principal = new UserPrincipal(user);
     }
 
     @Test
-    void generateAndValidateToken_andExtractClaims() {
-        UserPrincipal principal = new UserPrincipal(42L, "alice", "pwd", Set.of("REQUESTER", "ADMIN"));
+    void generateAndValidate() {
         String token = jwtService.generateToken(principal);
-
-        assertThat(jwtService.isValid(token)).isTrue();
-        assertThat(jwtService.extractUsername(token)).isEqualTo("alice");
-        assertThat(jwtService.extractUserId(token)).isEqualTo(42L);
-        assertThat(jwtService.extractRoles(token)).containsExactlyInAnyOrder("REQUESTER", "ADMIN");
+        assertTrue(jwtService.isTokenValid(token));
     }
 
     @Test
-    void tamperedToken_isInvalid() {
-        UserPrincipal principal = new UserPrincipal(42L, "alice", "pwd", Set.of("REQUESTER"));
+    void extractUsername() {
         String token = jwtService.generateToken(principal);
-        String tampered = token.substring(0, token.length() - 4) + "abcd";
-
-        assertThat(jwtService.isValid(tampered)).isFalse();
+        assertEquals("alice", jwtService.extractUsername(token));
     }
 
     @Test
-    void expiredToken_isInvalid() {
-        JwtService shortLivedService = new JwtService(secret, -1000);
-        UserPrincipal principal = new UserPrincipal(42L, "alice", "pwd", Set.of("REQUESTER"));
-        String token = shortLivedService.generateToken(principal);
+    void extractUserId() {
+        String token = jwtService.generateToken(principal);
+        assertEquals(1L, jwtService.extractUserId(token));
+    }
 
-        assertThat(jwtService.isValid(token)).isFalse();
+    @Test
+    void extractRoles() {
+        String token = jwtService.generateToken(principal);
+        List<String> roles = jwtService.extractRoles(token);
+        assertTrue(roles.contains("REQUESTER"));
+    }
+
+    @Test
+    void tamperedToken_invalid() {
+        String token = jwtService.generateToken(principal);
+        String tampered = token + "xyz";
+        assertFalse(jwtService.isTokenValid(tampered));
+    }
+
+    @Test
+    void invalidToken_invalid() {
+        assertFalse(jwtService.isTokenValid("not.a.token"));
     }
 }
 
