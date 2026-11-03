@@ -19,3 +19,4 @@ spring:
 jwt:
   secret: dGhpcyBpcyBhIHZlcnkgc2VjdXJlIGp3dCBzZWNyZXQga2V5IGZvciBhcHByb3ZhbC13b3JrZmxvdy1lbmdpbmUh
   expiration-ms: 3600000
+
